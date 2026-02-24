@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NRC Discussion Assistant</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+            background-color: #f4f5f7;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+        .phone-container {
+            background-color: #fff;
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        @media (min-width: 450px) {
+            .phone-container {
+                height: 800px;
+                border-radius: 20px;
+                border: 1px solid #ddd;
+            }
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .hidden {
+            display: none !important;
+        }
+
+        /* Language specific styles */
+        .zh { font-size: 1.1em; font-weight: bold; margin-bottom: 4px; display: block; }
+        .en { font-size: 0.85em; color: #555; display: block; }
+        .ja { font-size: 0.85em; color: #555; display: block; margin-bottom: 8px; }
+
+        /* Panic Button */
+        .panic-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 220px;
+            height: 220px;
+            box-shadow: 0 10px 20px rgba(231, 76, 60, 0.3);
+            cursor: pointer;
+            transition: transform 0.1s;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .panic-btn:active {
+            transform: scale(0.95);
+        }
+        .panic-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .panic-btn .zh, .panic-btn .en, .panic-btn .ja {
+            color: white;
+            margin-bottom: 2px;
+        }
+
+        /* Voting Style */
+        .vote-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .vote-btn.yes { border-color: #27ae60; }
+        .vote-btn.yes .zh { color: #27ae60; }
+        .vote-btn.no { border-color: #7f8c8d; }
+        .vote-btn.no .zh { color: #7f8c8d; }
+        .vote-btn:active { background-color: #f9f9f9; transform: scale(0.98); }
+
+        /* Result Bar Animation */
+        .result-row { margin-bottom: 20px; }
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .progress-bg {
+            background-color: #ecf0f1;
+            border-radius: 10px;
+            height: 20px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 10px;
+            width: 0%;
+            transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .fill-yes { background-color: #27ae60; }
+        .fill-no { background-color: #95a5a6; }
+
+        .status-msg {
+            background-color: #dff9fb;
+            color: #30336b;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .reset-link {
+            text-align: center;
+            margin-top: 30px;
+            color: #3498db;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="phone-container">
+    <div class="header">
+        NRC Discussion Assistant
+    </div>
+
+    <div id="view-idle" class="content">
+        <div style="text-align:center; margin-bottom: 30px;">
+            <span class="zh">討論進行中...</span>
+            <span class="en">Discussion in Progress</span>
+            <span class="ja">現在議論中...</span>
+            
+            <div style="margin-top: 20px;">
+                <span class="zh" style="font-size: 0.95em; font-weight: normal;">若覺得討論陷入膠著，可匿名請求停止。</span>
+                <span class="en" style="font-size: 0.8em;">If discussion is stuck, you can request to stop anonymously.</span>
+                <span class="ja" style="font-size: 0.8em;">議論が膠着した場合、匿名で停止をリクエストできます。</span>
+            </div>
+        </div>
+
+        <button class="panic-btn" onclick="triggerVote()">
+            <div class="panic-icon">✋</div>
+            <span class="zh">請求停止討論</span>
+            <span class="en">Request to Stop</span>
+            <span class="ja">議論停止リクエスト</span>
+        </button>
+    </div>
+
+    <div id="view-vote" class="content hidden">
+        <div class="status-msg">
+            <span class="zh">🔔 收到請求</span>
+            <span class="en">Someone requested to stop.</span>
+            <span class="ja">誰かが議論停止を提案しました。</span>
+        </div>
+
+        <div style="text-align:center; margin-bottom: 30px;">
+            <span class="zh" style="font-size: 1.3em;">是否結束討論並進行表決？</span>
+            <span class="en">Should we stop discussion and vote immediately?</span>
+            <span class="ja">議論を打ち切って表決に移りますか？</span>
+        </div>
+
+        <button class="vote-btn yes" onclick="castVote(true)">
+            <span class="zh">⭕️ 贊成 (進行表決)</span>
+            <span class="en">Yes, move to vote</span>
+            <span class="ja">賛成 (投票へ移る)</span>
+        </button>
+
+        <button class="vote-btn no" onclick="castVote(false)">
+            <span class="zh">⚪️ 反對 (繼續討論)</span>
+            <span class="en">No, continue discussion</span>
+            <span class="ja">反対 (議論を続ける)</span>
+        </button>
+    </div>
+
+    <div id="view-result" class="content hidden">
+        <div style="text-align:center; margin-bottom:20px;">
+            <span class="zh" style="font-size: 1.5em;">投票結果</span>
+            <span class="en">Result</span>
+        </div>
+
+        <div class="result-row">
+            <div class="label-row">
+                <span>贊成 / Yes / 賛成</span>
+                <span id="score-yes">0%</span>
+            </div>
+            <div class="progress-bg">
+                <div id="bar-yes" class="progress-fill fill-yes"></div>
+            </div>
+        </div>
+
+        <div class="result-row">
+            <div class="label-row">
+                <span>反對 / No / 反対</span>
+                <span id="score-no">0%</span>
+            </div>
+            <div class="progress-bg">
+                <div id="bar-no" class="progress-fill fill-no"></div>
+            </div>
+        </div>
+
+        <div class="status-msg" style="margin-top:30px; background-color:#e8f8f5; color:#27ae60;">
+            <span class="zh">✅ <strong>提案已通過</strong><br>請主席裁定結束討論。</span>
+            <hr style="border: 0; border-top: 1px solid #b2e0cf; margin: 10px 0;">
+            <span class="en">Motion Passed. Chairperson, please close the discussion.</span><br>
+            <span class="ja">可決されました。議長は議論を打ち切ってください。</span>
+        </div>
+
+        <div class="reset-link" onclick="resetDemo()">
+            <span class="zh">🔄 重置示範</span> / <span class="en">Reset Demo</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    function triggerVote() {
+        document.getElementById('view-idle').classList.add('hidden');
+        document.getElementById('view-vote').classList.remove('hidden');
+    }
+
+    function castVote(isYes) {
+        document.getElementById('view-vote').classList.add('hidden');
+        document.getElementById('view-result').classList.remove('hidden');
+
+        setTimeout(() => {
+            animateResults();
+        }, 300);
+    }
+
+    function animateResults() {
+        const yesTarget = 82;
+        const noTarget = 18;
+
+        document.getElementById('bar-yes').style.width = yesTarget + '%';
+        document.getElementById('bar-no').style.width = noTarget + '%';
+
+        animateValue("score-yes", 0, yesTarget, 1500);
+        animateValue("score-no", 0, noTarget, 1500);
+    }
+
+    function animateValue(id, start, end, duration) {
+        let obj = document.getElementById(id);
+        let range = end - start;
+        let minTimer = 50;
+        let stepTime = Math.max(Math.floor(duration / range), minTimer);
+        let startTime = new Date().getTime();
+        let endTime = startTime + duration;
+        let timer;
+
+        function run() {
+            let now = new Date().getTime();
+            let remaining = Math.max((endTime - now) / duration, 0);
+            let value = Math.round(end - (remaining * range));
+            obj.innerHTML = value + "%";
+            if (value == end) {
+                clearInterval(timer);
+            }
+        }
+
+        timer = setInterval(run, stepTime);
+        run();
+    }
+
+    function resetDemo() {
+        document.getElementById('bar-yes').style.width = '0%';
+        document.getElementById('bar-no').style.width = '0%';
+        document.getElementById('score-yes').innerHTML = '0%';
+        document.getElementById('score-no').innerHTML = '0%';
+        document.getElementById('view-result').classList.add('hidden');
+        document.getElementById('view-idle').classList.remove('hidden');
+    }
+</script>
+
+</body>
+</html>
